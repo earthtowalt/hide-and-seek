@@ -15,11 +15,25 @@ SCREEN_SIZE = 640,400
 BACKGROUND_COLOR = (0,0,0,0)
 
 # control
-UP_KEY = pygame.K_UP
-DOWN_KEY = pygame.K_DOWN
-RIGHT_KEY = pygame.K_RIGHT
-LEFT_KEY = pygame.K_LEFT
+CLIENT_UP_KEY = pygame.K_UP
+CLIENT_DOWN_KEY = pygame.K_DOWN
+CLIENT_RIGHT_KEY = pygame.K_RIGHT
+CLIENT_LEFT_KEY = pygame.K_LEFT
+CLIENT_ARROW_KEYS = [CLIENT_UP_KEY, CLIENT_DOWN_KEY, CLIENT_RIGHT_KEY, CLIENT_LEFT_KEY]
+
+
+UP_KEY = 0
+DOWN_KEY = 1
+RIGHT_KEY = 2
+LEFT_KEY = 3
 ARROW_KEYS = [UP_KEY, DOWN_KEY, RIGHT_KEY, LEFT_KEY]
+
+CLIENT_TO_PROTOCOL = {
+    CLIENT_UP_KEY:UP_KEY,
+    CLIENT_DOWN_KEY:DOWN_KEY,
+    CLIENT_RIGHT_KEY:RIGHT_KEY,
+    CLIENT_LEFT_KEY:LEFT_KEY
+}
 
 
 # Socket
@@ -70,12 +84,12 @@ class Player:
         # elif event.type == pygame.KEYUP and event.key in self.inputs:
         #     self.inputs.remove(event.key)
         
-        if event.type in [pygame.KEYDOWN, pygame.KEYUP] and event.key in ARROW_KEYS:
+        if event.type in [pygame.KEYDOWN, pygame.KEYUP] and event.key in CLIENT_ARROW_KEYS:
             self.inputs = set()
             keys = pygame.key.get_pressed()
-            for key in ARROW_KEYS:
+            for key in CLIENT_ARROW_KEYS:
                 if keys[key]:
-                    self.inputs.add(key)
+                    self.inputs.add(CLIENT_TO_PROTOCOL[key])
         
     def update_location(self,walls):
         dx = dy = 0
@@ -194,7 +208,7 @@ class VisualGame(Game):
     
     def serve_forever(self):
         while True:
-            data, address = self.socket.recvfrom(2048)
+            data, address = self.socket.recvfrom(1048)
             
             # print('\treceived: %s bytes from %s' % (len(data), address))
             # print('\treceived: %s' % data)
@@ -254,7 +268,7 @@ class VisualGame(Game):
         # print('sent data, waiting for ack')
         # keep going until ack? 
         # try:
-        #     received = self.socket.recv(2048)
+        #     received = self.socket.recv(1024)
         # except socket.timeout:
         #     print("TIMEOUT")
         #     time.sleep(.5)
@@ -403,7 +417,7 @@ class HeadlessGameServer(Game):
     def serve_forever(self):
         while True:
             try:
-                data, address = self.socket.recvfrom(2048)
+                data, address = self.socket.recvfrom(1024)
             
                 # print('\treceived: %s bytes from %s' % (len(data), address))
                 # print('\treceived: %s' % data)
@@ -438,6 +452,7 @@ class HeadlessGameServer(Game):
                 self.players.append(newPlayer)
 
                 self.client_addresses.add((address[0],data['return_port']))
+                
 
         if data["type"] == "inputs":
 
