@@ -448,6 +448,7 @@ class HeadlessGameServer(Game):
                 self.socket.sendto(pickle.dumps({'type':'inputs_ack','inputs':data['inputs']}), address)
                 print('replied to %s inputs_ack' % client_player[0].username)
                 # apply inputs to player
+                print('setting inputs for:',client_player[0].username)
                 client_player[0].inputs = data['inputs']
             else:
                 # reply with kick message if player is not registered
