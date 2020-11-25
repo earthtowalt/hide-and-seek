@@ -23,7 +23,7 @@ ARROW_KEYS = [UP_KEY, DOWN_KEY, RIGHT_KEY, LEFT_KEY]
 
 
 # Socket
-SERVER_ADDRESS = ('172.25.32.1', 10001)
+SERVER_ADDRESS = ('54.210.86.172', 10001)
 
 # game rules
 COOLDOWN_TIME = 5
@@ -129,10 +129,10 @@ class Game:
         # sprite groups ?players?
         # self.players = pygame.sprite.Group()
         self.map = Map(1200)
-        maze = Maze(15,15,7,7)
-        maze.make_maze()
+        # maze = Maze(15,15,7,7)
+        # maze.make_maze()
 
-        self.map.walls = maze.get_wall_list()
+        self.map.walls = Maze.load_from_file('map1.txt')
 
     
 

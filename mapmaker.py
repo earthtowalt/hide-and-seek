@@ -3,6 +3,7 @@
 
 # df_maze.py
 import random
+import pickle
 
 
 # Create a maze using the depth-first algorithm described at
@@ -90,6 +91,16 @@ class Maze:
                     walls.append([x*CELL_SIZE,y*CELL_SIZE,(x+1)*CELL_SIZE,y*CELL_SIZE])
         
         return walls
+    
+    def write_to_file(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self.get_wall_list(), f)
+            
+
+    def load_from_file(filename):
+        with open(filename, 'rb') as f:
+            return pickle.load(f)
+        
 
     def write_svg(self, filename):
         """Write an SVG image of the maze to filename."""
@@ -158,7 +169,6 @@ class Maze:
         return neighbours
 
     def make_maze(self):
-        random.seed(42)
         # Total number of cells.
         n = self.nx * self.ny
         cell_stack = []
@@ -194,3 +204,4 @@ if __name__ == "__main__":
 
     print(maze)
     print(maze.get_wall_list())
+    maze.write_to_file('map1.txt')
