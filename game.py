@@ -53,6 +53,7 @@ class Player:
         self.bgcolor = (100,100,200)
         self.score = 0
         self.role = "ghost"
+        self.size = 10
 
         self.color = (random.randint(100,255), random.randint(100,255), random.randint(100,255))
         self.bgcolor = (random.randint(0,100), random.randint(0,100), random.randint(0,100))
@@ -103,8 +104,10 @@ class Player:
 
         return False
     
-    def get_sprite(self):
-        pass
+    def get_rect(self):
+        rect = pygame.Rect(0,0,self.size,self.size)
+        rect.center = tuple(self.location)
+        return rect
 
 
 class Game:
@@ -131,6 +134,15 @@ class Game:
         for player in self.players:
             player.update_location(self.map.walls)
         # print(self.player.location)
+    
+    def get_caught(self, seeker):
+        seeker_rect = seeker.get_rect()
+        caught = []
+        for player in self.players:
+            if player != seeker and player.role == 'hider' and player.get_rect().colliderect(seeker_rect):
+                caught.append(player)
+        return caught
+
         
     def main_loop(self):
         '''main loop'''
@@ -288,8 +300,12 @@ class VisualGame(Game):
                 pygame.draw.circle(surface,color,(x,y), 10)
 
 
-                # draw usernames above other players
+                # draw usernames and scores above other players
                 text = self.textfont.render(player.username[:6], True, (255,255,255))
+                text_rect = text.get_rect(center=(x, y-40))
+                surface.blit(text,text_rect)
+
+                text = self.textfont.render(str(player.score), True, (255,255,255))
                 text_rect = text.get_rect(center=(x, y-20))
                 surface.blit(text,text_rect)
 
@@ -311,8 +327,12 @@ class VisualGame(Game):
         # self.player.draw(self.screen)
         # self.bullets.draw(self.screen)
 
-        # draw usernames above other players
+        # draw usernames and score above this player
         text = self.textfont.render(self.player.username[:6], True, (255,255,255))
+        text_rect = text.get_rect(center=(SCREEN_SIZE[0]/2, SCREEN_SIZE[1]/2 - 40))
+        surface.blit(text,text_rect)
+
+        text = self.textfont.render(str(self.player.score), True, (255,255,255))
         text_rect = text.get_rect(center=(SCREEN_SIZE[0]/2, SCREEN_SIZE[1]/2 - 20))
         surface.blit(text,text_rect)
         
@@ -438,9 +458,22 @@ class HeadlessGameServer(Game):
 
         # waiting for players to join to start the game
         self.state="waiting"
+
         while not self.done:
             # the client inputs are handled in a separate thread, here we just simulate the game
             self.update()
+
+            # get all players caught by seeker, set them to ghosts, increment seeker score
+            if self.state == "seeking":
+                caught = self.get_caught(self.seeker)
+                for p in caught:
+                    print("%s was caught" % p.username)
+                    p.role = "ghost"
+                    self.seeker.score += 2
+
+
+
+                
 
             # handle game state changes
             if len(self.players) < 2:
@@ -476,7 +509,10 @@ class HeadlessGameServer(Game):
         self.state = "waiting"
         print("ROUND END...")
         for player in self.players:
+            if player.role == "hider":
+                player.score += 1
             player.role = "ghost"
+
         self.seeker = None
 
 
