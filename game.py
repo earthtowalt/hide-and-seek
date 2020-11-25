@@ -7,6 +7,8 @@ import threading
 import time
 import random
 
+from mapmaker import Maze
+
 # Pygame
 CAPTION = "Hidey"
 SCREEN_SIZE = 640,400
@@ -17,9 +19,15 @@ UP_KEY = 273
 DOWN_KEY = 274
 RIGHT_KEY = 275
 LEFT_KEY = 276
+UP_KEY = pygame.K_UP
+DOWN_KEY = pygame.K_DOWN
+RIGHT_KEY = pygame.K_RIGHT
+LEFT_KEY = pygame.K_LEFT
 ARROW_KEYS = [UP_KEY, DOWN_KEY, RIGHT_KEY, LEFT_KEY]
 
+
 # Socket
+SERVER_ADDRESS = ('18.212.207.163', 10001)
 SERVER_ADDRESS = ('172.25.32.1', 10001)
 
 # game rules
@@ -126,13 +134,18 @@ class Game:
         # sprite groups ?players?
         # self.players = pygame.sprite.Group()
         self.map = Map(1200)
+        maze = Maze(15,15,7,7)
+        maze.make_maze()
+
+        self.map.walls = maze.get_wall_list()
 
     
 
     def update(self):
         '''update all bullets, and the player motion'''
         for player in self.players:
-            player.update_location(self.map.walls)
+            if not (player.role == 'seeker' and self.state == 'hiding'):
+                player.update_location(self.map.walls)
         # print(self.player.location)
     
     def get_caught(self, seeker):
@@ -335,7 +348,12 @@ class VisualGame(Game):
         text = self.textfont.render(str(self.player.score), True, (255,255,255))
         text_rect = text.get_rect(center=(SCREEN_SIZE[0]/2, SCREEN_SIZE[1]/2 - 20))
         surface.blit(text,text_rect)
-        
+
+        # draw game state
+        text = self.textfont.render(self.state.upper(), True, (255,255,255))
+        text_rect = text.get_rect(center=(SCREEN_SIZE[0]/2, 60))
+        surface.blit(text,text_rect)
+
         self.screen.blit(surface,(0,0))
 
         pygame.display.update()
@@ -411,7 +429,7 @@ class HeadlessGameServer(Game):
                 self.socket.sendto(pickle.dumps({'type':'login_ack','status':'bad'}), address)
             else:
                 # ack
-                self.socket.sendto(pickle.dumps({'type':'login_ack','map':self.map, 'status':'ok'}), address)
+                self.socket.sendto(pickle.dumps({'type':'login_ack', 'status':'ok'}), address) # TODO: Send the map with a larger packet size?
                 print('replied to %s login_ack' % data['username'])
                 # register user
                 newPlayer = Player([300,200],data['username'])
