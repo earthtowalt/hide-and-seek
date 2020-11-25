@@ -136,7 +136,7 @@ class Game:
         # maze.make_maze()
 
         self.map.walls = Maze.load_from_file('map1.txt')
-
+        print(self.map.walls)
     
 
     def update(self):
@@ -489,10 +489,6 @@ class HeadlessGameServer(Game):
                     print("%s was caught" % p.username)
                     p.role = "ghost"
                     self.seeker.score += 2
-
-
-
-                
 
             # handle game state changes
             if len(self.players) < 2:
