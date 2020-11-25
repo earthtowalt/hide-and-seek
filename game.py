@@ -60,7 +60,10 @@ class Player:
 
         self.color = (random.randint(100,255), random.randint(100,255), random.randint(100,255))
         self.bgcolor = (random.randint(0,100), random.randint(0,100), random.randint(0,100))
-        
+    
+    def __str__(self):
+        return "username:"+self.username+", location:"+str(self.location)+", inputs:"+str(self.inputs)
+
     def handle_event(self, event):
         # if event.type == pygame.KEYDOWN:
         #     self.inputs.add(event.key)
@@ -191,7 +194,7 @@ class VisualGame(Game):
     
     def serve_forever(self):
         while True:
-            data, address = self.socket.recvfrom(1024)
+            data, address = self.socket.recvfrom(2048)
             
             # print('\treceived: %s bytes from %s' % (len(data), address))
             # print('\treceived: %s' % data)
@@ -219,7 +222,11 @@ class VisualGame(Game):
                     thread.interrupt_main()
                     sys.exit()
                 if data['type'] == 'update' and data['timestamp'] > self.recent_timestamp:
-                    # old way (no averaging)   
+                    # old way (no averaging)
+                    print()   
+                    print(data)
+                    for p in data['players']:
+                        print(p)
                     self.players = data['players']
                     self.player = next(x for x in data['players'] if x.username == self.player.username)
 
@@ -247,7 +254,7 @@ class VisualGame(Game):
         # print('sent data, waiting for ack')
         # keep going until ack? 
         # try:
-        #     received = self.socket.recv(1024)
+        #     received = self.socket.recv(2048)
         # except socket.timeout:
         #     print("TIMEOUT")
         #     time.sleep(.5)
@@ -396,7 +403,7 @@ class HeadlessGameServer(Game):
     def serve_forever(self):
         while True:
             try:
-                data, address = self.socket.recvfrom(1024)
+                data, address = self.socket.recvfrom(2048)
             
                 # print('\treceived: %s bytes from %s' % (len(data), address))
                 # print('\treceived: %s' % data)
@@ -426,7 +433,7 @@ class HeadlessGameServer(Game):
                 self.socket.sendto(pickle.dumps({'type':'login_ack', 'status':'ok'}), address) # TODO: Send the map with a larger packet size?
                 print('replied to %s login_ack' % data['username'])
                 # register user
-                newPlayer = Player([300,200],data['username'])
+                newPlayer = Player([301,401],data['username'])
                 newPlayer.address = address
                 self.players.append(newPlayer)
 
