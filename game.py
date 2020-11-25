@@ -23,7 +23,7 @@ ARROW_KEYS = [UP_KEY, DOWN_KEY, RIGHT_KEY, LEFT_KEY]
 
 
 # Socket
-SERVER_ADDRESS = ('54.242.243.56', 10001)
+SERVER_ADDRESS = ('172.25.32.1', 10001)
 
 # game rules
 COOLDOWN_TIME = 5
@@ -102,7 +102,7 @@ class Player:
             t = np.linalg.det([[x1-x3,x3-x4],[y1-y3,y3-y4]]) / denom
             u = -np.linalg.det([[x1-x2,x1-x3],[y1-y2,y1-y3]]) / denom
 
-            if 0 <= t <= 1 and 0 <= u <= 1:
+            if 0 < t <= 1 and 0 <= u <= 1:
                 return True 
 
         return False
@@ -174,7 +174,7 @@ class VisualGame(Game):
         self.textfont = pygame.font.Font(None, 25)
 
         # create the player objects
-        self.player = Player([300,400], username)
+        self.player = Player([301,401], username)
         self.players = [self.player]
         
         # initialize UDP connection
@@ -219,7 +219,6 @@ class VisualGame(Game):
                     thread.interrupt_main()
                     sys.exit()
                 if data['type'] == 'update' and data['timestamp'] > self.recent_timestamp:
-
                     # old way (no averaging)   
                     self.players = data['players']
                     self.player = next(x for x in data['players'] if x.username == self.player.username)
@@ -434,7 +433,6 @@ class HeadlessGameServer(Game):
                 self.client_addresses.add((address[0],data['return_port']))
 
         if data["type"] == "inputs":
-            
 
             # get the Player Object for the player
             client_player = [x for x in self.players if x.address == address]
@@ -458,6 +456,7 @@ class HeadlessGameServer(Game):
             data = pickle.dumps({'type':'update','players':self.players,'game_state':self.state,'timestamp':timestamp})
             # send update to all clients
             for addr in self.client_addresses:
+                # print(addr,data)
                 self.socket.sendto(data, addr)
             
             time.sleep(0.200) # update clients at 200 ms interval
