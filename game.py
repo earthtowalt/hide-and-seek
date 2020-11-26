@@ -79,17 +79,14 @@ class Player:
         return "username:"+self.username+", location:"+str(self.location)+", inputs:"+str(self.inputs)
 
     def handle_event(self, event):
-        # if event.type == pygame.KEYDOWN:
-        #     self.inputs.add(event.key)
-        # elif event.type == pygame.KEYUP and event.key in self.inputs:
-        #     self.inputs.remove(event.key)
-        
+        print("OK")
         if event.type in [pygame.KEYDOWN, pygame.KEYUP] and event.key in CLIENT_ARROW_KEYS:
             self.inputs = set()
             keys = pygame.key.get_pressed()
             for key in CLIENT_ARROW_KEYS:
                 if keys[key]:
                     self.inputs.add(CLIENT_TO_PROTOCOL[key])
+                    print('handle_event inputs',self.inputs)
         
     def update_location(self,walls):
         dx = dy = 0
@@ -285,7 +282,7 @@ class VisualGame(Game):
             if event.type == pygame.QUIT:
                 self.done = True 
             # if an arrow key was pressed, pass it along to the player
-            if event.type in [pygame.KEYDOWN,pygame.KEYUP] and event.key in ARROW_KEYS:
+            if event.type in [pygame.KEYDOWN,pygame.KEYUP] and event.key in CLIENT_ARROW_KEYS:
                 self.player.handle_event(event)
                 msg = pickle.dumps({'type':'inputs','inputs':self.player.inputs})
                 self.send(msg)
@@ -526,6 +523,7 @@ class HeadlessGameServer(Game):
 
         for player in self.players:
             player.role = "hider"
+            player.location = [301,401]
 
         # randomly select a seeker
         self.seeker = random.choice(self.players)
