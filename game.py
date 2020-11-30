@@ -38,6 +38,7 @@ CLIENT_TO_PROTOCOL = {
 
 # Socket
 SERVER_ADDRESS = ('34.224.98.28', 10001)
+#SERVER_ADDRESS = ('172.25.32.1', 10001)
 
 # game rules
 COOLDOWN_TIME = 5
@@ -244,11 +245,6 @@ class VisualGame(Game):
                     thread.interrupt_main()
                     sys.exit()
                 if data['type'] == 'update' and data['timestamp'] > self.recent_timestamp:
-                    # old way (no averaging)
-                    # print()
-                    # print(data)
-                    # for p in data['players']:
-                    #     print(p)
                     self.players = data['players']
                     self.player = next(x for x in data['players'] if x.username == self.player.username)
 
@@ -268,19 +264,7 @@ class VisualGame(Game):
                     #         self.players.append(p)
                 
     def send(self, data):
-        # create thread to send data
-        # attach timestamp
-        # try to send data to server, wait n ms for ack, maybe exp backoff
-        # keep sending until ack or timeout
         self.socket.sendto(data, SERVER_ADDRESS)
-        # print('sent data, waiting for ack')
-        # keep going until ack? 
-        # try:
-        #     received = self.socket.recv(1024)
-        # except socket.timeout:
-        #     print("TIMEOUT")
-        #     time.sleep(.5)
-        # print('received ack')
         
     def login(self, username):
         self.send(pickle.dumps({'type':'login', 'username':username, 'return_port':self.socket.getsockname()[1]}))
@@ -477,7 +461,7 @@ class HeadlessGameServer(Game):
                 self.socket.sendto(pickle.dumps({'type':'kick'}), address)
             
             # if this is the most recent timestamp
-            elif client_player and data['timestamp'] >= client_player.last_input:
+            elif client_player and data['timestamp'] >= client_player[0].last_input:
                 # reply with ack
                 self.socket.sendto(pickle.dumps({'type':'inputs_ack','inputs':data['inputs']}), address)
                 print('replied to %s inputs_ack' % client_player[0].username)
