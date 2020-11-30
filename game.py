@@ -14,14 +14,14 @@ CAPTION = "Hidey"
 SCREEN_SIZE = 640,400
 BACKGROUND_COLOR = (0,0,0,0)
 
-# control
+# get the client arrow keys
 CLIENT_UP_KEY = pygame.K_UP
 CLIENT_DOWN_KEY = pygame.K_DOWN
 CLIENT_RIGHT_KEY = pygame.K_RIGHT
 CLIENT_LEFT_KEY = pygame.K_LEFT
 CLIENT_ARROW_KEYS = [CLIENT_UP_KEY, CLIENT_DOWN_KEY, CLIENT_RIGHT_KEY, CLIENT_LEFT_KEY]
 
-
+# create codes so control keys are the same across os
 UP_KEY = 0
 DOWN_KEY = 1
 RIGHT_KEY = 2
@@ -44,6 +44,13 @@ COOLDOWN_TIME = 5
 HIDE_TIME = 5
 SEEK_TIME = 15
 
+# Colors
+SEEKER = (255,0,0)
+BGSEEKER = (10,10,10)
+GHOST = (30,30,30)
+BGGHOST = (100,100,100)
+
+
 class Map:
     def __init__(self, ms=100):
         self.mapsize = ms
@@ -58,37 +65,39 @@ class Map:
     def addWall(self, a, b):
         self.walls.append(a+b)
 
-
+# player object containing important information about a player.
 class Player:
     def __init__(self, location, username, speed=8):
+        # for multiplayer functions
         self.username = username
         self.address = None
+        self.score = 0
+        self.role = "ghost"
+        # player movement variables
         self.location = location
         self.inputs = set()
         self.speed = speed
-        self.color = (0,0,255)
-        self.bgcolor = (100,100,200)
-        self.score = 0
-        self.role = "ghost"
-        self.size = 10
-
+        # set the color and size of the player
         self.color = (random.randint(100,255), random.randint(100,255), random.randint(100,255))
         self.bgcolor = (random.randint(0,100), random.randint(0,100), random.randint(0,100))
-    
+        self.size = 10
+
     def __str__(self):
         return "username:"+self.username+", location:"+str(self.location)+", inputs:"+str(self.inputs)
 
+    # an event is passed to the client
+    # when an arrow key is pressed or released, the inputs variable is updated with the current inputs
     def handle_event(self, event):
-        print("OK")
         if event.type in [pygame.KEYDOWN, pygame.KEYUP] and event.key in CLIENT_ARROW_KEYS:
             self.inputs = set()
             keys = pygame.key.get_pressed()
             for key in CLIENT_ARROW_KEYS:
                 if keys[key]:
                     self.inputs.add(CLIENT_TO_PROTOCOL[key])
-                    print('handle_event inputs',self.inputs)
         
+    # given a set of walls, check the inputs variable and apply a change to the position of this player
     def update_location(self,walls):
+        # calculate the desired change in position, (dx,dy)
         dx = dy = 0
         for i in self.inputs:
             if i == UP_KEY:
@@ -100,10 +109,12 @@ class Player:
             elif i == RIGHT_KEY:
                 dx += self.speed 
 
+        # check if the player is allowed to move into the new spot
         newspot = [self.location[0] + dx, self.location[1] + dy]
         if self.role == 'ghost' or ((dy != 0 or dx != 0) and not self.wallcollide(self.location+newspot,walls)):
             self.location = newspot
 
+    # check if a step intersects a wall
     def wallcollide(self, step_vector, walls):
         x1,y1,x2,y2 = step_vector 
         for wall in walls:
@@ -116,18 +127,22 @@ class Player:
             t = np.linalg.det([[x1-x3,x3-x4],[y1-y3,y3-y4]]) / denom
             u = -np.linalg.det([[x1-x2,x1-x3],[y1-y2,y1-y3]]) / denom
 
+            # if there is an intersection
+            # (check if 0<t represents that there is no collision if the players path starts on a wall)
             if 0 < t <= 1 and 0 <= u <= 1:
                 return True 
 
         return False
     
+    # get a rect representing the player, used for drawing
     def get_rect(self):
         rect = pygame.Rect(0,0,self.size,self.size)
         rect.center = tuple(self.location)
         return rect
 
-
+# Base Game 
 class Game:
+    '''Base Game class'''
     def __init__(self):
         '''create a gunner and create a group for bullets '''
         
@@ -137,17 +152,12 @@ class Game:
         self.fps = 30
         self.state = "waiting"
 
-        # setup players
-        # self.player = Player([300,400])
-        
-        # sprite groups ?players?
-        # self.players = pygame.sprite.Group()
+        # setup map
         self.map = Map(1200)
-        # maze = Maze(15,15,7,7)
-        # maze.make_maze()
-
         self.map.walls = Maze.load_from_file('map1.txt')
-        print(self.map.walls)
+        
+        # set a start timer for timestamps
+        self.start_time = time.time()
     
 
     def update(self):
@@ -277,27 +287,33 @@ class VisualGame(Game):
         print('waiting for server ack and map info...')
     
     def event_loop(self):
-        ''' events are passed to appropriate object'''
+        '''handle events by passing them to the appropriate objects'''
         for event in pygame.event.get():
             # print(event)
             if event.type == pygame.QUIT:
                 self.done = True 
             # if an arrow key was pressed, pass it along to the player
             if event.type in [pygame.KEYDOWN,pygame.KEYUP] and event.key in CLIENT_ARROW_KEYS:
+                # update the player object with the event
                 self.player.handle_event(event)
-                msg = pickle.dumps({'type':'inputs','inputs':self.player.inputs})
+
+                # send a message to the server with updated player inputs
+                timestamp = int((time.time()-self.start_time)*10)
+                msg = pickle.dumps({'type':'inputs','inputs':self.player.inputs, 'timestamp':timestamp})
                 self.send(msg)
     
     def draw(self):
         '''draw all elements to the display surface'''
         # black the screen
         self.screen.fill(BACKGROUND_COLOR)
-
-        surface = pygame.Surface(SCREEN_SIZE, pygame.SRCALPHA)
+        
+        # create a surface to draw to, it will later be blit to the screen
+        surface = pygame.Surface(SCREEN_SIZE)
         
         # draw the map 
         # create a camera Frame that will be relative to the map 
         Frame = np.zeros(SCREEN_SIZE)
+        # adjust the wall positions based on the player location and screen size, then draw the walls to the surface
         for wall in np.array(self.map.walls):
             wall[0] -= self.player.location[0] - SCREEN_SIZE[0]/2
             wall[1] -= self.player.location[1] - SCREEN_SIZE[1]/2
@@ -306,52 +322,48 @@ class VisualGame(Game):
             
             pygame.draw.line(surface, (255,255,255,255), wall[:2], wall[2:], 3)
 
+        # draw each player along with their names and scores
         for player in self.players:
             if player != self.player:
                 x = int(player.location[0] - self.player.location[0] + SCREEN_SIZE[0]/2)
                 y = int(player.location[1] - self.player.location[1] + SCREEN_SIZE[1]/2)
 
-                # seeker will be red
+                # set the color
                 if player.role == "seeker":
-                    color = (255,0,0,255)
-                    bgcolor = (200,200,200,255)
+                    color = SEEKER
+                    bgcolor = BGSEEKER
                 elif player.role == "ghost":
-                    color = player.color + (50,)
-                    bgcolor = player.color + (50,)
+                    color = GHOST
+                    bgcolor = BGGHOST
                 else:
-                    color = player.color + (255,)
-                    bgcolor = player.bgcolor + (255,)
-                # print(color)
+                    color = player.color
+                    bgcolor = player.bgcolor
+                # draw the player circle
                 pygame.draw.circle(surface,bgcolor,(x,y), 12)
                 pygame.draw.circle(surface,color,(x,y), 10)
 
-
                 # draw usernames and scores above other players
-                text = self.textfont.render(player.username[:6], True, (255,255,255))
+                text = self.textfont.render(player.username[:10], True, (255,255,255))
                 text_rect = text.get_rect(center=(x, y-40))
                 surface.blit(text,text_rect)
 
                 text = self.textfont.render(str(player.score), True, (255,255,255))
                 text_rect = text.get_rect(center=(x, y-20))
                 surface.blit(text,text_rect)
-
         
-        # draw the player (always in the middle)
-        # seeker will be red
+        # set the player color
         if self.player.role == "seeker":
-            color = (255,0,0,255)
-            bgcolor = (200,200,200,255)
+            color = SEEKER
+            bgcolor = BGSEEKER
         elif self.player.role == "ghost":
-            color = self.player.color + (50,)
-            bgcolor = self.player.color + (50,)
+            color = GHOST
+            bgcolor = BGGHOST
         else:
-            color = self.player.color + (255,)
-            bgcolor = self.player.bgcolor + (255,)
-
+            color = self.player.color
+            bgcolor = self.player.bgcolor
+        # draw the player circles
         pygame.draw.circle(surface,bgcolor,tuple(map(int,(SCREEN_SIZE[0]/2, SCREEN_SIZE[1]/2))), 12)
         pygame.draw.circle(surface,color,tuple(map(int,(SCREEN_SIZE[0]/2, SCREEN_SIZE[1]/2))), 10)
-        # self.player.draw(self.screen)
-        # self.bullets.draw(self.screen)
 
         # draw usernames and score above this player
         text = self.textfont.render(self.player.username[:6], True, (255,255,255))
@@ -367,13 +379,15 @@ class VisualGame(Game):
         text_rect = text.get_rect(center=(SCREEN_SIZE[0]/2, 60))
         surface.blit(text,text_rect)
 
+        # paint the surface to the screen
         self.screen.blit(surface,(0,0))
 
+        # update the display
         pygame.display.update()
     
-    
+    # repeat for the duration of the game. 
     def main_loop(self):
-        '''main loop'''
+        '''main control loop'''
         while not self.done:
             self.event_loop()
             self.update()
@@ -447,25 +461,30 @@ class HeadlessGameServer(Game):
                 # register user
                 newPlayer = Player([301,401],data['username'])
                 newPlayer.address = address
+                newPlayer.last_input = -1
                 self.players.append(newPlayer)
 
                 self.client_addresses.add((address[0],data['return_port']))
                 
 
         if data["type"] == "inputs":
-
+            
             # get the Player Object for the player
             client_player = [x for x in self.players if x.address == address]
-            if client_player:
+
+            # reply with kick message if player is not registered
+            if not client_player:
+                self.socket.sendto(pickle.dumps({'type':'kick'}), address)
+            
+            # if this is the most recent timestamp
+            elif client_player and data['timestamp'] >= client_player.last_input:
                 # reply with ack
                 self.socket.sendto(pickle.dumps({'type':'inputs_ack','inputs':data['inputs']}), address)
                 print('replied to %s inputs_ack' % client_player[0].username)
                 # apply inputs to player
                 print('setting inputs for:',client_player[0].username,'inputs are:',data['inputs'])
                 client_player[0].inputs = data['inputs']
-            else:
-                # reply with kick message if player is not registered
-                self.socket.sendto(pickle.dumps({'type':'kick'}), address)
+                
         
     
     def notify_clients(self):
