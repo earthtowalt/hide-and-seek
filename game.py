@@ -37,7 +37,7 @@ CLIENT_TO_PROTOCOL = {
 
 
 # Socket
-SERVER_ADDRESS = ('54.210.86.172', 10001)
+SERVER_ADDRESS = ('34.224.98.28', 10001)
 
 # game rules
 COOLDOWN_TIME = 5
@@ -205,18 +205,19 @@ class VisualGame(Game):
     
     def serve_forever(self):
         while True:
-            data, address = self.socket.recvfrom(1048)
+            data, address = self.socket.recvfrom(1024)
             
             # print('\treceived: %s bytes from %s' % (len(data), address))
             # print('\treceived: %s' % data)
             # print('\tunpickled:%s' % pickle.loads(data))
             # print()
+
+            
             
             if data:
                 data = pickle.loads(data)
                 
-                # print('\tparsing data...')
-                # self.parse_data(data)
+                print('\tparsing data...')
 
                 if data['type'] == 'login_ack':
                     print("successful login at address: %s:%d" % address)
@@ -234,10 +235,10 @@ class VisualGame(Game):
                     sys.exit()
                 if data['type'] == 'update' and data['timestamp'] > self.recent_timestamp:
                     # old way (no averaging)
-                    print()   
-                    print(data)
-                    for p in data['players']:
-                        print(p)
+                    # print()
+                    # print(data)
+                    # for p in data['players']:
+                    #     print(p)
                     self.players = data['players']
                     self.player = next(x for x in data['players'] if x.username == self.player.username)
 
