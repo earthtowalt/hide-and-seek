@@ -476,9 +476,11 @@ class HeadlessGameServer(Game):
             # create update object to send 
             data = pickle.dumps({'type':'update','players':self.players,'game_state':self.state,'timestamp':timestamp})
             # send update to all clients
-            for addr in self.client_addresses:
+            for p in players:
+                addr = p.address
                 # print(addr,data)
                 self.socket.sendto(data, addr)
+                print("notifying: %s:%d" % addr)
             
             time.sleep(0.200) # update clients at 200 ms interval
             
