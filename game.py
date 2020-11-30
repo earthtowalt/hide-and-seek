@@ -476,7 +476,7 @@ class HeadlessGameServer(Game):
             # create update object to send 
             data = pickle.dumps({'type':'update','players':self.players,'game_state':self.state,'timestamp':timestamp})
             # send update to all clients
-            for p in players:
+            for p in self.players:
                 addr = p.address
                 # print(addr,data)
                 self.socket.sendto(data, addr)
