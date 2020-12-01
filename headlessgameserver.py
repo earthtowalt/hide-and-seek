@@ -55,8 +55,7 @@ class HeadlessGameServer(Game):
                 if data:
                     self.parse_data(data, address)
             except ConnectionResetError:
-                # TODO do something here to recover when a client is lost
-                print("connection lost?")
+                # TODO do something here to recover when a client has disconnected?
                 pass
     
     def parse_data(self, data, address):
@@ -110,10 +109,10 @@ class HeadlessGameServer(Game):
         inactive = []
         for player in self.players:
             if time.time() - player.last_active > INACTIVE_TIME:
-                self.socket.sendto(pickle.dumps({'type':'kick'}), player.address)
                 inactive.append(player)
         for player in inactive:
             print('kicking: %s' % player.username)
+            self.socket.sendto(pickle.dumps({'type':'kick'}), player.address)
             self.players.remove(player)
     
     def notify_clients(self):

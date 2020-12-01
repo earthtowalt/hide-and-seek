@@ -130,7 +130,7 @@ class VisualGame(Game):
     def login(self, username):
         '''send a login message to the server with the username FIXME DONT SEND PORT NUM'''
 
-        self.send({'type':'login', 'username':username, 'return_port':self.socket.getsockname()[1]})
+        self.send({'type':'login', 'username':username})
         print('waiting for server ack and map info...')
     
     def event_loop(self):
