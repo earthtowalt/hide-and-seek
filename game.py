@@ -51,16 +51,16 @@ CLIENT_TO_PROTOCOL = {
 
 # Server address
 SERVER_ADDRESS = ('34.224.98.28', 10001)
-SERVER_ADDRESS = ('172.25.32.1', 10001)
+# SERVER_ADDRESS = ('172.25.32.1', 10001)
 
 # game rules
-COOLDOWN_TIME = 10
-HIDE_TIME = 10
-SEEK_TIME = 15
+COOLDOWN_TIME = 5
+HIDE_TIME = 5
+SEEK_TIME = 10
 
 # map size
 MAP_SIZE = 20
-MAP_CENTER = [600,600]
+MAP_CENTER = [480,480]
 
 # Role speeds
 SEEKER_SPEED = 9
@@ -628,7 +628,7 @@ class HeadlessGameServer(Game):
         # start generating the next map
         self.map_seed = random.randint(1,100)
         print('generating new map with seed: %d' % self.map_seed)
-        self.map = self.generate_map(self.seed)
+        self.map = self.generate_map(self.map_seed)
         print(self.map[:10])
 
 
