@@ -1,4 +1,4 @@
-from game import HeadlessGameServer
+from headlessgameserver import HeadlessGameServer
 
 server = HeadlessGameServer()
 server.setup_server()

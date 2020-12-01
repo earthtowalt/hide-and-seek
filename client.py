@@ -1,6 +1,6 @@
 # client runner
 
-from game import VisualGame
+from visualgame import VisualGame
 
 username = input("Enter your username: ")
 
