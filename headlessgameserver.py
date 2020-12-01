@@ -164,6 +164,7 @@ class HeadlessGameServer(Game):
 
             # handle game state changes
             if len(self.players) < 2:
+                self.state = "waiting"
                 reset_time = time.time()
                 self.kick_inactive()
             if self.state == "waiting" and time.time() - reset_time > COOLDOWN_TIME:

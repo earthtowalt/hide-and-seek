@@ -20,9 +20,9 @@ from config import *
 
 # TODO combine map segments to reduce number of walls
 # TODO Allow player to move diagonally along wall
-# TODO Create a config.txt file so that changing parameters like 
+# Create a config.txt file so that changing parameters like 
 #      serveraddress, etc. does not need to be commits to the game file.
-# TODO put each class in a file
+# put each class in a file
 
 # send professor setup email
 # TODO Write-up
