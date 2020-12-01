@@ -182,9 +182,6 @@ class HeadlessGameServer(Game):
         self.state="hiding"
         print("ROUND START...")
 
-        # kick all inactive
-        self.kick_inactive()
-
         # reset all players
         for player in self.players:
             player.role = "hider"
@@ -215,6 +212,8 @@ class HeadlessGameServer(Game):
             player.speed = GHOST_SPEED
 
         self.seeker = None
+
+        self.kick_inactive()
 
         # start generating the next map
         self.map_seed = random.randint(1,100)
