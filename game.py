@@ -9,8 +9,21 @@ import random
 
 from mapmaker import Maze
 
+# TODO figure out self.start_time, start_time
+# TODO kick inactive players
+# TODO improve map generation
+# TODO send map seed to client from server
+# TODO set start location
+# TODO handle when there are more players than the byte-size can handle
+# TODO combine map segments to reduce number of walls
+# TODO Allow player to move diagonally along wall
+# TODO create requirements.txt
+# TODO Create a config.txt file so that changing parameters like 
+#      serveraddress, etc. does not need to be commits to the game file.
+
+
 # Pygame
-CAPTION = "Hidey"
+CAPTION = "Hide and Seek!"
 SCREEN_SIZE = 640,400
 BACKGROUND_COLOR = (0,0,0,0)
 
@@ -38,48 +51,41 @@ CLIENT_TO_PROTOCOL = {
 
 # Server address
 SERVER_ADDRESS = ('34.224.98.28', 10001)
-# SERVER_ADDRESS = ('172.25.32.1', 10001)
+SERVER_ADDRESS = ('172.25.32.1', 10001)
 
 # game rules
-COOLDOWN_TIME = 5
-HIDE_TIME = 5
+COOLDOWN_TIME = 10
+HIDE_TIME = 10
 SEEK_TIME = 15
+
+# map size
+MAP_SIZE = 20
+MAP_CENTER = [600,600]
+
+# Role speeds
+SEEKER_SPEED = 9
+HIDER_SPEED = 7
+GHOST_SPEED = 10
 
 # Colors
 SEEKER = (255,0,0)
 BGSEEKER = (10,10,10)
 GHOST = (30,30,30)
 BGGHOST = (100,100,100)
-
-
-class Map:
-    '''Class used to store a map of walls'''
-    def __init__(self, ms=100):
-        '''Initialize this map with a set of border walls'''
-        self.mapsize = ms
-        self.walls = [[0,  0,  ms, 0],  \
-                      [ms, 0,  ms, ms], \
-                      [ms, ms, 0,  ms], \
-                      [0,  ms, 0,  0]]
-
-    def addWall(self, a, b):
-        '''add a wall from point a to point b'''
-        self.walls.append(a+b)
-    
     
 class Player:
     '''Player object containing important information about a player.'''
-    def __init__(self, location, username, speed=8):
+    def __init__(self, location, username):
         '''Setup the player object'''
         # for multiplayer functions
         self.username = username
         self.address = None
         self.score = 0
-        self.role = "ghost"
+        self.role = "hider" # FIXME MAKE GHOST
         # player movement variables
         self.location = location
         self.inputs = set()
-        self.speed = speed
+        self.speed = 10
         # set the color and size of the player
         self.color = (random.randint(100,255), random.randint(100,255), random.randint(100,255))
         self.bgcolor = (random.randint(0,100), random.randint(0,100), random.randint(0,100))
@@ -145,8 +151,8 @@ class Player:
         return False
     
     def get_rect(self):
-        '''get a rect representing the player, used for drawing'''
-        rect = pygame.Rect(0,0,self.size,self.size)
+        '''get a rect representing the player, used for collision checking'''
+        rect = pygame.Rect(0,0,int(self.size*2.5),int(self.size*2.5))
         rect.center = tuple(self.location)
         return rect
 
@@ -154,7 +160,7 @@ class Player:
 class Game:
     '''Base Game class'''
     def __init__(self):
-        '''create a gunner and create a group for bullets '''
+        '''Create the game basics and map'''
         
         # game fps and loop condiiton
         self.done = False
@@ -162,9 +168,12 @@ class Game:
         self.fps = 30
         self.state = "waiting"
 
-        # setup map
-        self.map = Map(1200)
-        self.map.walls = Maze.load_from_file('map1.txt')
+        # create an empty list for the players
+        self.players = []
+
+        # setup map -- a list of coordinate pairs
+        self.map_seed = -1
+        self.map = [] # Maze.load_from_file('map1.txt')
         
         # set a start timer for timestamps
         self.start_time = time.time()
@@ -174,7 +183,7 @@ class Game:
         '''update all bullets, and the player motion'''
         for player in self.players:
             if not (player.role == 'seeker' and self.state == 'hiding'):
-                player.update_location(self.map.walls)
+                player.update_location(self.map)
         # print(self.player.location)
     
     def get_caught(self, seeker):
@@ -190,6 +199,11 @@ class Game:
     def main_loop(self):
         '''main loop'''
         pass
+
+    def generate_map(self,seed):
+        maze = Maze(20,20,10,10)
+        maze.make_maze(seed)
+        return maze.get_wall_list()
 
 
 class VisualGame(Game):
@@ -217,7 +231,7 @@ class VisualGame(Game):
         self.textfont = pygame.font.Font(None, 25)
 
         # create the player objects - self.player is THIS client player, self.players is a list of all players
-        self.player = Player([301,401], username)
+        self.player = Player(MAP_CENTER, username)
         self.players = [self.player]
         
         # initialize UDP connection
@@ -242,7 +256,7 @@ class VisualGame(Game):
             if data:
                 data = pickle.loads(data)
 
-                print('received data: %s' % data['type'])
+                # print('received data: %s' % data['type'])
 
                 # if login fails, then quit. 
                 if data['type'] == 'login_ack':
@@ -278,6 +292,15 @@ class VisualGame(Game):
                     self.state = data['game_state']
                     # keep track of when the latest server update was received
                     self.current_update_timestamp = data['timestamp']
+
+                    # if the mapseed is different from the current seed, then calculate the new map.
+                    if data['map_seed'] != self.map_seed:
+                        # generate new map...
+                        print('generating new client map with seed: %d' % data['map_seed'])
+                        self.map = self.generate_map(data['map_seed'])
+                        # update seed variable
+                        self.map_seed = data['map_seed']
+                        print(self.map[:10])
 
                     # TODO: Add averaging or some other method to reduce other players jumpiness
                     # now = dict()
@@ -325,12 +348,18 @@ class VisualGame(Game):
         
         # create a surface to draw to, it will later be blit to the screen
         surface = pygame.Surface(SCREEN_SIZE)
+
+        # draw a small circle at the center of the map (for debugging) 
+        tmp = MAP_CENTER.copy()
+        tmp[0] -= int(self.player.location[0] - SCREEN_SIZE[0]/2)
+        tmp[1] -= int(self.player.location[1] - SCREEN_SIZE[1]/2)
+        pygame.draw.circle(surface, (255,255,255), tmp, 3)
         
         # draw the map 
         # create a camera Frame that will be relative to the map 
         Frame = np.zeros(SCREEN_SIZE)
         # adjust the wall positions based on the player location and screen size, then draw the walls to the surface
-        for wall in np.array(self.map.walls):
+        for wall in np.array(self.map):
             wall[0] -= self.player.location[0] - SCREEN_SIZE[0]/2
             wall[1] -= self.player.location[1] - SCREEN_SIZE[1]/2
             wall[2] -= self.player.location[0] - SCREEN_SIZE[0]/2
@@ -391,7 +420,7 @@ class VisualGame(Game):
         surface.blit(text,text_rect)
 
         # draw game state
-        text = self.textfont.render(self.state.upper(), True, (255,255,255))
+        text = self.textfont.render(self.state.upper(), True, (0,0,255))
         text_rect = text.get_rect(center=(SCREEN_SIZE[0]/2, 60))
         surface.blit(text,text_rect)
 
@@ -424,6 +453,12 @@ class HeadlessGameServer(Game):
 
         # create the socket used for the server
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        # create an initial map for the game
+        self.map_seed = random.randint(1,100)
+        print('generating initial map with seed: %d' % self.map_seed)
+        self.map = self.generate_map(self.map_seed)
+        print(self.map[:10])
         
     
     # create UDP Server
@@ -468,9 +503,9 @@ class HeadlessGameServer(Game):
             else:
                 # ack
                 self.socket.sendto(pickle.dumps({'type':'login_ack', 'status':'ok'}), address) # TODO: Send the map with a larger packet size?
-                print('replied to %s login_ack' % data['username'])
+                # print('replied to %s login_ack' % data['username'])
                 # register user
-                newPlayer = Player([301,401],data['username'])
+                newPlayer = Player(MAP_CENTER,data['username'])
                 newPlayer.address = address
                 newPlayer.last_input = -1
                 self.players.append(newPlayer)
@@ -490,7 +525,7 @@ class HeadlessGameServer(Game):
                 self.socket.sendto(pickle.dumps({'type':'inputs_ack','inputs':data['inputs']}), address)
                 print('replied to %s inputs_ack' % client_player[0].username)
                 # apply inputs to player
-                print('setting inputs for:',client_player[0].username,'inputs are:',data['inputs'])
+                # print('setting inputs for:',client_player[0].username,'inputs are:',data['inputs'])
                 client_player[0].inputs = data['inputs']
                 
         
@@ -502,15 +537,19 @@ class HeadlessGameServer(Game):
             # send along a timestamp! the client will only apply the most recent timestamp update
             timestamp = int((time.time()-start)*10) 
             # create update object to send 
-            data = pickle.dumps({'type':'update','players':self.players,'game_state':self.state,'timestamp':timestamp})
+            data = pickle.dumps({'type':        'update',
+                                 'players':     self.players,
+                                 'game_state':  self.state,
+                                 'map_seed':    self.map_seed,
+                                 'timestamp':   timestamp})
             # send update to all clients
             for p in self.players:
                 addr = p.address
                 # print(addr,data)
                 self.socket.sendto(data, addr)
-                print("notifying: %s:%d" % addr)
+                # print("notifying: %s:%d" % addr)
             
-            time.sleep(0.200) # update clients at 200 ms interval
+            time.sleep(0.100) # update clients at 100 ms interval
             
             
     def main_loop(self):
@@ -534,6 +573,7 @@ class HeadlessGameServer(Game):
                 for p in caught:
                     print("%s was caught" % p.username)
                     p.role = "ghost"
+                    p.speed = GHOST_SPEED
                     self.seeker.score += 2
 
             # handle game state changes
@@ -557,11 +597,15 @@ class HeadlessGameServer(Game):
 
         for player in self.players:
             player.role = "hider"
-            player.location = [301,401]
+            player.speed = HIDER_SPEED
+            player.location = MAP_CENTER.copy()
+            player.location[0] += random.uniform(-100,100)
+            player.location[1] += random.uniform(-100,100)
 
         # randomly select a seeker
         self.seeker = random.choice(self.players)
         self.seeker.role = "seeker"
+        self.seeker.speed = SEEKER_SPEED
 
     def seeker_start(self):
         '''Start the seeker phase'''
@@ -577,7 +621,15 @@ class HeadlessGameServer(Game):
             if player.role == "hider":
                 player.score += 1
             player.role = "ghost"
+            player.speed = GHOST_SPEED
 
         self.seeker = None
+
+        # start generating the next map
+        self.map_seed = random.randint(1,100)
+        print('generating new map with seed: %d' % self.map_seed)
+        self.map = self.generate_map(self.seed)
+        print(self.map[:10])
+
 
 
