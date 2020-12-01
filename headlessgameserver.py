@@ -51,7 +51,7 @@ class HeadlessGameServer(Game):
         '''Receive and handle packets from the UDP Port'''
         while True:
             try:
-                data, address = self.socket.recvfrom(1024)
+                data, address = self.socket.recvfrom(MAX_PACKET)
                 if data:
                     self.parse_data(data, address)
             except ConnectionResetError:

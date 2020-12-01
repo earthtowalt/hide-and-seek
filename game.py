@@ -15,8 +15,8 @@ from config import *
 # TODO figure out self.start_time, start_time
 # TODO Seeker countdown
 
-# TODO stress test the max number of players
-# TODO handle when there are more players than the byte-size can handle
+# stress test the max number of players
+# handle when there are more players than the byte-size can handle
 
 # TODO combine map segments to reduce number of walls
 # TODO Allow player to move diagonally along wall

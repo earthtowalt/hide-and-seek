@@ -58,7 +58,7 @@ class VisualGame(Game):
         '''loop forever to handle incoming UDP packets'''
         while True:
             # read the data and address
-            data, address = self.socket.recvfrom(1024)
+            data, address = self.socket.recvfrom(MAX_PACKET)
             
             if data:
                 data = pickle.loads(data)
