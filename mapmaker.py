@@ -107,7 +107,7 @@ class Maze:
         with open(filename, 'wb') as f:
             pickle.dump(self.get_wall_list(), f)
             
-
+    @staticmethod
     def load_from_file(filename):
         with open(filename, 'rb') as f:
             return pickle.load(f)
@@ -165,7 +165,7 @@ def main():
 
     # print(maze)
     print(maze.get_wall_list()[:10])
-    maze.write_to_file('map1.txt')
+    # maze.write_to_file('map1.txt')
 
 if __name__ == "__main__":
     main()

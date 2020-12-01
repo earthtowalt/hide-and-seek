@@ -10,16 +10,21 @@ import random
 from mapmaker import Maze
 
 # TODO figure out self.start_time, start_time
-# TODO kick inactive players
-# TODO improve map generation
-# TODO send map seed to client from server
-# TODO set start location
+# TODO Seeker countdown
+
+# TODO stress test the max number of players
 # TODO handle when there are more players than the byte-size can handle
+
 # TODO combine map segments to reduce number of walls
 # TODO Allow player to move diagonally along wall
-# TODO create requirements.txt
 # TODO Create a config.txt file so that changing parameters like 
 #      serveraddress, etc. does not need to be commits to the game file.
+# TODO put each class in a file
+
+# send professor setup email
+# TODO Write-up
+# TODO Presentation
+
 
 
 # Pygame
@@ -49,9 +54,10 @@ CLIENT_TO_PROTOCOL = {
 }
 
 
-# Server address
+# Server Config
 SERVER_ADDRESS = ('34.224.98.28', 10001)
-# SERVER_ADDRESS = ('172.25.32.1', 10001)
+SERVER_ADDRESS = ('172.25.32.1', 10001)
+INACTIVE_TIME = 20
 
 # game rules
 COOLDOWN_TIME = 5
@@ -81,7 +87,7 @@ class Player:
         self.username = username
         self.address = None
         self.score = 0
-        self.role = "hider" # FIXME MAKE GHOST
+        self.role = "ghost"
         # player movement variables
         self.location = location
         self.inputs = set()
@@ -156,7 +162,7 @@ class Player:
         rect.center = tuple(self.location)
         return rect
 
- 
+
 class Game:
     '''Base Game class'''
     def __init__(self):
@@ -173,7 +179,7 @@ class Game:
 
         # setup map -- a list of coordinate pairs
         self.map_seed = -1
-        self.map = [] # Maze.load_from_file('map1.txt')
+        self.map = []
         
         # set a start timer for timestamps
         self.start_time = time.time()
@@ -300,7 +306,6 @@ class VisualGame(Game):
                         self.map = self.generate_map(data['map_seed'])
                         # update seed variable
                         self.map_seed = data['map_seed']
-                        print(self.map[:10])
 
                     # TODO: Add averaging or some other method to reduce other players jumpiness
                     # now = dict()
@@ -458,8 +463,9 @@ class HeadlessGameServer(Game):
         self.map_seed = random.randint(1,100)
         print('generating initial map with seed: %d' % self.map_seed)
         self.map = self.generate_map(self.map_seed)
-        print(self.map[:10])
-        
+
+        # use this to notify all players when their 
+        self.countdown_timer = None
     
     # create UDP Server
     def setup_server(self):
@@ -485,7 +491,7 @@ class HeadlessGameServer(Game):
                     self.parse_data(data, address)
             except ConnectionResetError:
                 # TODO do something here to recover when a client is lost
-                print("connection lost")
+                print("connection lost?")
                 pass
     
     def parse_data(self, data, address):
@@ -507,8 +513,10 @@ class HeadlessGameServer(Game):
                 # register user
                 newPlayer = Player(MAP_CENTER,data['username'])
                 newPlayer.address = address
-                newPlayer.last_input = -1
+                newPlayer.last_active = time.time()
+                newPlayer.last_timestamp = data['timestamp']
                 self.players.append(newPlayer)
+                print("login: %s" % newPlayer.username)
                 
         # handle client inputs
         if data["type"] == "inputs":
@@ -518,17 +526,30 @@ class HeadlessGameServer(Game):
             # reply with kick message if player is not registered
             if not client_player:
                 self.socket.sendto(pickle.dumps({'type':'kick'}), address)
-            
-            # if this is the most recent timestamp
-            elif client_player and data['timestamp'] >= client_player[0].last_input:
+
+            # if this is the most recent client-timestamp
+            elif client_player and data['timestamp'] >= client_player[0].last_timestamp:
                 # reply with ack
                 self.socket.sendto(pickle.dumps({'type':'inputs_ack','inputs':data['inputs']}), address)
                 print('replied to %s inputs_ack' % client_player[0].username)
                 # apply inputs to player
                 # print('setting inputs for:',client_player[0].username,'inputs are:',data['inputs'])
                 client_player[0].inputs = data['inputs']
+                client_player[0].last_timestamp = data['timestamp']
+
+                # prevent timeout
+                client_player[0].last_active = time.time()
                 
-        
+    def kick_inactive(self):
+        # kick any inactive players
+        inactive = []
+        for player in self.players:
+            if time.time() - player.last_active > INACTIVE_TIME:
+                self.socket.sendto(pickle.dumps({'type':'kick'}), player.address)
+                inactive.append(player)
+        for player in inactive:
+            print('kicking: %s' % player.username)
+            self.players.remove(player)
     
     def notify_clients(self):
         '''Send gamestate information to all clients at intervals'''
@@ -579,8 +600,10 @@ class HeadlessGameServer(Game):
             # handle game state changes
             if len(self.players) < 2:
                 reset_time = time.time()
+                self.kick_inactive()
             if self.state == "waiting" and time.time() - reset_time > COOLDOWN_TIME:
                 self.round_start()
+                self.kick_inactive()
             elif self.state == "hiding" and time.time() - reset_time > COOLDOWN_TIME + HIDE_TIME:
                 self.seeker_start()
             elif self.state == "seeking" and time.time() - reset_time > COOLDOWN_TIME + HIDE_TIME + SEEK_TIME:
@@ -599,8 +622,8 @@ class HeadlessGameServer(Game):
             player.role = "hider"
             player.speed = HIDER_SPEED
             player.location = MAP_CENTER.copy()
-            player.location[0] += random.uniform(-100,100)
-            player.location[1] += random.uniform(-100,100)
+            player.location[0] += random.uniform(-25,25)
+            player.location[1] += random.uniform(-25,25)
 
         # randomly select a seeker
         self.seeker = random.choice(self.players)
@@ -629,7 +652,6 @@ class HeadlessGameServer(Game):
         self.map_seed = random.randint(1,100)
         print('generating new map with seed: %d' % self.map_seed)
         self.map = self.generate_map(self.map_seed)
-        print(self.map[:10])
 
 
 
