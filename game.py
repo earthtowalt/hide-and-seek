@@ -56,7 +56,7 @@ CLIENT_TO_PROTOCOL = {
 
 # Server Config
 SERVER_ADDRESS = ('34.224.98.28', 10001)
-SERVER_ADDRESS = ('172.25.32.1', 10001)
+# SERVER_ADDRESS = ('172.25.32.1', 10001)
 INACTIVE_TIME = 20
 
 # game rules
@@ -603,7 +603,6 @@ class HeadlessGameServer(Game):
                 self.kick_inactive()
             if self.state == "waiting" and time.time() - reset_time > COOLDOWN_TIME:
                 self.round_start()
-                self.kick_inactive()
             elif self.state == "hiding" and time.time() - reset_time > COOLDOWN_TIME + HIDE_TIME:
                 self.seeker_start()
             elif self.state == "seeking" and time.time() - reset_time > COOLDOWN_TIME + HIDE_TIME + SEEK_TIME:
@@ -618,6 +617,10 @@ class HeadlessGameServer(Game):
         self.state="hiding"
         print("ROUND START...")
 
+        # kick all inactive
+        self.kick_inactive()
+
+        # reset all players
         for player in self.players:
             player.role = "hider"
             player.speed = HIDER_SPEED
